@@ -1,0 +1,477 @@
+{
+  "active": true,
+  "connections": {
+    "Format alarm types": {
+      "main": [
+        [
+          {
+            "node": "Switch - Parse only Security Activity alarms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Discord Message": {
+      "main": [
+        [
+          {
+            "node": "Send Discord message of firewalla alarm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract IOCs": {
+      "main": [
+        [
+          {
+            "node": "Send to IntelOwl for analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to IntelOwl for analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse IntelOwl Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get IntelOwl results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Parse only Security Activity alarms": {
+      "main": [
+        [
+          {
+            "node": "Format Discord Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Webhook from Firewalla": {
+      "main": [
+        [
+          {
+            "node": "Format alarm types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get IntelOwl results": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse IntelOwl Job IDs": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Job IDs": {
+      "main": [
+        [
+          {
+            "node": "Parse IntelOwl malicious results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse IntelOwl malicious results": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Send results to AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Send results to AI": {
+      "main": [
+        [
+          {
+            "node": "Send Threat Summary to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "createdAt": "2024-08-07T17:53:51.493Z",
+  "id": "WIObP8n79cIL1Ns0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "name": "Notification of Firewalla alarms and Threat Intel",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Function to check if an IP address is private or RFC 1918\nfunction isPrivateIP(ip) {\n    const parts = ip.split('.').map(num => parseInt(num, 10));\n    return (\n        (parts[0] === 10) ||\n        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||\n        (parts[0] === 192 && parts[1] === 168)\n    );\n}\n\n// Recursive function to search for IoCs in the JSON object\nfunction searchForIoCs(obj, indicators) {\n    if (typeof obj !== 'object' || obj === null) {\n        return;\n    }\n\n    for (const key in obj) {\n        if (typeof obj[key] === 'object') {\n            searchForIoCs(obj[key], indicators);\n        } else if (typeof obj[key] === 'string' && obj[key].trim() !== '') {\n            if (key === 'ip' && !isPrivateIP(obj[key])) {\n                indicators.push([\"ip\", obj[key]]);\n            } else if (key === 'name' && obj[key].includes('.') && obj[key] !== obj.ip) {\n                indicators.push([\"domain\", obj[key]]);\n            } else if (key === 'url' && key !== 'webhookUrl') {\n                indicators.push([\"url\", obj[key]]);\n            }\n        }\n    }\n}\n\n// Get all input data from the previous workflow\nlet inputData = $input.all();\n\n// Array to store indicators of compromise\nconst indicatorsOfCompromise = [];\n\n// Iterate through each alert in the input data\ninputData.forEach(item => {\n    searchForIoCs(item.json, indicatorsOfCompromise);\n});\n\n// Return the structured JSON result\nreturn {\n    json: {\n        observables: indicatorsOfCompromise,\n        tlp: \"CLEAR\",\n        analyzers_requested: [\"VirusTotal_v3_Get_Observable\", \"OpenCTI\"],\n        connectors_requested: [\"OpenCTI\"],\n        runtime_configuration: {},\n        tags_labels: [\"firewalla\"]\n    }\n};"
+      },
+      "id": "9a9e3fd0-53d9-4a70-9163-1f520e4c4800",
+      "name": "Extract IOCs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function findAlarmType(obj) {\n  if (typeof obj !== 'object' || obj === null) {\n    return null;\n  }\n\n  if (obj.hasOwnProperty('alarm') && obj.alarm.hasOwnProperty('type')) {\n    return obj.alarm.type;\n  }\n\n  for (const key in obj) {\n    if (obj.hasOwnProperty(key)) {\n      const result = findAlarmType(obj[key]);\n      if (result) {\n        return result;\n      }\n    }\n  }\n\n  return null;\n}\n\n// Access the JSON data from the previous node\nconst jsonData = $input.all()[0]?.json || {};\nconst alertTypeValue = findAlarmType(jsonData);\n\nlet alertType = 'default';\nif (alertTypeValue) {\n  switch (alertTypeValue) {\n    case '1':\n      alertType = 'security_activity';\n      break;\n    case '2':\n      alertType = 'abnormal_upload';\n      break;\n    case '3':\n      alertType = 'large_bandwidth_usage';\n      break;\n    case '4':\n      alertType = 'monthly_data_plan';\n      break;\n    case '5':\n      alertType = 'new_device';\n      break;\n    case '6':\n      alertType = 'device_back_online';\n      break;\n    case '7':\n      alertType = 'device_offline';\n      break;\n    case '8':\n      alertType = 'video_activity';\n      break;\n    case '9':\n      alertType = 'gaming_activity';\n      break;\n    case '10':\n      alertType = 'porn_activity';\n      break;\n    case '11':\n      alertType = 'vpn_activity';\n      break;\n    case '12':\n      alertType = 'vpn_connection_restored';\n      break;\n    case '13':\n      alertType = 'vpn_connection_error';\n      break;\n    case '14':\n      alertType = 'open_port';\n      break;\n    case '15':\n      alertType = 'internet_connectivity_update';\n      break;\n    case '16':\n      alertType = 'large_upload';\n      break;\n    default:\n      alertType = 'default';\n      break;\n  }\n}\n\nreturn {\n  json: {\n    alertType,\n    alert: jsonData\n  }\n};\n"
+      },
+      "id": "91f4a58e-bc8f-4afe-8c61-a8fbdfba5236",
+      "name": "Format alarm types",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $input.all()[0]?.json?.alert?.query?.alarm || {};\n\nlet message = `Security Activity Alert:\n- Active Timestamp: ${alert.activeTs || 'N/A'}\n- Type: ${alert._type || 'N/A'}\n- Direction: ${alert.direction || 'N/A'}\n- Protocol: ${alert.protocol || 'N/A'}\n- Security Reason: ${alert.securityReason || 'N/A'}\n- Decision: ${alert.decision || 'N/A'}\n- Auto Block: ${alert.autoBlock || 'N/A'}\n- Notice Type: ${alert.noticeType || 'N/A'}\n\nRemote Details:\n- Organization: ${alert.extra?.remote?.org || 'N/A'}\n- Trigger: ${alert.extra?.trigger || 'N/A'}\n- Name: ${alert.remote?.name || 'N/A'}\n- IP: ${alert.remote?.ip || 'N/A'}\n- Region: ${alert.remote?.region || 'N/A'}\n- URL: ${alert.remote?.url || 'N/A'}\n- Longitude: ${alert.remote?.longitude || 'N/A'}\n- Latitude: ${alert.remote?.latitude || 'N/A'}\n- Root Domain: ${alert.remote?.rootDomain || 'N/A'}\n- Port: ${alert.remote?.port?.join(', ') || 'N/A'}\n- Domain: ${alert.remote?.domain || 'N/A'}\n- Intel Category: ${alert.remote?.intelCategory || 'N/A'}\n\nDevice Details:\n- ID: ${alert.device?.id || 'N/A'}\n- Name: ${alert.device?.name || 'N/A'}\n- IP: ${alert.device?.ip || 'N/A'}\n- Port: ${alert.device?.port?.join(', ') || 'N/A'}\n\nNetwork Details:\n- Network ID: ${alert.network?.id || 'N/A'}\n- Network Name: ${alert.network?.name || 'N/A'}\n\nSource and Destination Ports:\n- Source Port: ${alert.remote?.port?.join(', ') || 'N/A'}\n- Destination Port: ${alert.device?.port?.join(', ') || 'N/A'}\n`;\n\nreturn {\n  json: {\n    message\n  }\n};"
+      },
+      "id": "1630c073-0125-4e55-bebe-f3bcdf5b9b19",
+      "name": "Format Discord Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://10.1.1.16:8010/api/analyze_multiple_observables",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json}}",
+        "options": {}
+      },
+      "id": "b344a2f3-b455-4885-b80a-cfe136cf51cd",
+      "name": "Send to IntelOwl for analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        540
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lDEigFCbg5pstCiV",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "ca92c696-9c54-4468-ac10-95308b9b512c",
+      "name": "Send Discord message of firewalla alarm",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        320
+      ],
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "aydTNYpNRInUArCd",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://10.1.1.16:8010/api/jobs/{{ $json.jobId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "87879fee-703a-40ac-9bdb-208314a6cee6",
+      "name": "Get IntelOwl results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1840,
+        880
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lDEigFCbg5pstCiV",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "e6361f01-16ba-4be9-822e-6654d7e61377",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1640,
+        880
+      ],
+      "webhookId": "f9a8de4a-ad0f-4173-97a9-0e2daf60edc2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.alertType }}",
+                    "rightValue": "security_activity",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "a486e1f6-8a8f-4b30-bfbe-528bacbd684c",
+                    "leftValue": "={{ $json.alertType }}",
+                    "rightValue": "abnormal_upload",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "82364c87-b20e-4406-8e46-fa09a35c4830",
+      "name": "Switch - Parse only Security Activity alarms",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        480,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "223a75ac-642c-4d79-a742-c7834304454c",
+        "options": {}
+      },
+      "id": "366a44e8-b4f0-4a2e-b249-07fd2485c1ce",
+      "name": "Trigger Webhook from Firewalla",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        60,
+        300
+      ],
+      "webhookId": "223a75ac-642c-4d79-a742-c7834304454c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input data from the previous node\nconst inputData = items[0].json;\n\n// Initialize an array to store the job IDs\nlet jobIds = [];\n\n// Check if inputData has results and iterate over them to extract job IDs\nif (inputData.results) {\n  inputData.results.forEach(result => {\n    jobIds.push(result.job_id);\n  });\n}\n\n// Return the job IDs as output\nreturn jobIds.map(jobId => ({ json: { jobId } }));"
+      },
+      "id": "0be6272d-105e-4c66-b74b-82c79a2358b6",
+      "name": "Parse IntelOwl Job IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "bcccb93b-3c19-4a9e-a406-aa465c5efca5",
+      "name": "Loop Over Job IDs",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1420,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input data from the previous workflow\nlet inputData = $input.all();\n\n// Initialize an array to store parsed results\nconst parsedResults = [];\n\n// Iterate over each job in the input data\ninputData.forEach(item => {\n    const job = item.json;\n\n    // Extract the job ID\n    const jobId = job.id;\n\n    // Iterate over each analyzer report\n    job.analyzer_reports.forEach(report => {\n        // Extract observable and last_analysis_stats if available\n        const observable = report.report?.data?.id;\n        const lastAnalysisStats = report.report?.data?.attributes?.last_analysis_stats;\n        const lastAnalysisResults = report.report?.data?.attributes?.last_analysis_results;\n\n        // Collect engines that detected the observable as malicious or suspicious\n        const relevantEngines = [];\n        if (lastAnalysisResults) {\n            for (const [engine, result] of Object.entries(lastAnalysisResults)) {\n                if (result.category === 'malicious' || result.category === 'suspicious') {\n                    relevantEngines.push({\n                        engine_name: result.engine_name,\n                        method: result.method,\n                        result: result.result,\n                        category: result.category\n                    });\n                }\n            }\n        }\n\n        // Only add to results if all properties are present\n        if (observable && lastAnalysisStats && relevantEngines.length > 0) {\n            parsedResults.push({\n                jobId,\n                observable,\n                lastAnalysisStats,\n                relevantEngines\n            });\n        }\n    });\n});\n\n// Return the parsed results\nreturn parsedResults.map(result => ({ json: result }));"
+      },
+      "id": "d2f737b4-9cbb-4187-8533-2dddef0af0f7",
+      "name": "Parse IntelOwl malicious results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.message.content }}",
+        "options": {}
+      },
+      "id": "5241bf33-2125-4723-97ec-36c791a1d1e1",
+      "name": "Send Threat Summary to Discord",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        560
+      ],
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "aydTNYpNRInUArCd",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the IntelOwl analysis results and summarize it for reporting to SOC analysts. Total engines analyzed is the sum of the lastAnalysisStats.",
+              "role": "system"
+            },
+            {
+              "content": "=\"content\": \"{{ JSON.stringify($json) }}\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d929f88f-6f3b-43c6-8a9c-5b36b00fbdf3",
+      "name": "OpenAI - Send results to AI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [
+        1720,
+        320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qLJXFWacZvu8ag2U",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-08-08T01:14:03.131Z",
+      "updatedAt": "2024-08-08T01:14:03.131Z",
+      "id": "aoVp7iWntuM0t6Pk",
+      "name": "firewall"
+    },
+    {
+      "createdAt": "2024-08-08T01:14:06.458Z",
+      "updatedAt": "2024-08-08T01:14:06.458Z",
+      "id": "ln2ptUKnQn9kWtyR",
+      "name": "soc"
+    },
+    {
+      "createdAt": "2024-08-08T01:14:13.767Z",
+      "updatedAt": "2024-08-08T01:14:13.767Z",
+      "id": "r85RHGQyR7JKdXEE",
+      "name": "vthreatlab"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-08-16T22:45:59.000Z",
+  "versionId": "388697b2-1b1b-4da7-89ba-0ff92e4f1a0a"
+}
