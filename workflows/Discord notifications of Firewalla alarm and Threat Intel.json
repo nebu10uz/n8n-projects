@@ -72,17 +72,6 @@
         ]
       ]
     },
-    "Trigger Webhook from Firewalla": {
-      "main": [
-        [
-          {
-            "node": "Format alarm types",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Get IntelOwl results": {
       "main": [
         [
@@ -144,6 +133,17 @@
           }
         ]
       ]
+    },
+    "Trigger Webhook from Firewalla": {
+      "main": [
+        [
+          {
+            "node": "Format alarm types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "createdAt": "2024-08-07T17:53:51.493Z",
@@ -151,7 +151,7 @@
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "name": "Notification of Firewalla alarms and Threat Intel",
+  "name": "Discord notifications of Firewalla alarm and Threat Intel",
   "nodes": [
     {
       "parameters": {
@@ -335,22 +335,6 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "223a75ac-642c-4d79-a742-c7834304454c",
-        "options": {}
-      },
-      "id": "366a44e8-b4f0-4a2e-b249-07fd2485c1ce",
-      "name": "Trigger Webhook from Firewalla",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        60,
-        300
-      ],
-      "webhookId": "223a75ac-642c-4d79-a742-c7834304454c"
-    },
-    {
-      "parameters": {
         "jsCode": "// Get the input data from the previous node\nconst inputData = items[0].json;\n\n// Initialize an array to store the job IDs\nlet jobIds = [];\n\n// Check if inputData has results and iterate over them to extract job IDs\nif (inputData.results) {\n  inputData.results.forEach(result => {\n    jobIds.push(result.job_id);\n  });\n}\n\n// Return the job IDs as output\nreturn jobIds.map(jobId => ({ json: { jobId } }));"
       },
       "id": "0be6272d-105e-4c66-b74b-82c79a2358b6",
@@ -444,6 +428,38 @@
           "name": "OpenAi account"
         }
       }
+    },
+    {
+      "parameters": {
+        "content": "## Firewalla MSP Setup\n\n1. Go to your Firewall MSP portal and under Alarms > Alarm Settings > Integration > Custom App, add your n8n webhook URL. The webhook URL is provided by this trigger webhook node. Just double click on this node and the webhook URL is located in Parameters.",
+        "height": 370.3777089783284,
+        "width": 425.80804953560397,
+        "color": 5
+      },
+      "id": "782e870f-f6e2-451d-aa09-acd0fce49f2d",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "223a75ac-642c-4d79-a742-c7834304454c",
+        "options": {}
+      },
+      "id": "366a44e8-b4f0-4a2e-b249-07fd2485c1ce",
+      "name": "Trigger Webhook from Firewalla",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        60,
+        300
+      ],
+      "webhookId": "223a75ac-642c-4d79-a742-c7834304454c"
     }
   ],
   "pinData": {},
@@ -472,6 +488,6 @@
     }
   ],
   "triggerCount": 1,
-  "updatedAt": "2024-08-16T22:45:59.000Z",
-  "versionId": "388697b2-1b1b-4da7-89ba-0ff92e4f1a0a"
+  "updatedAt": "2024-08-17T00:47:59.000Z",
+  "versionId": "55c20d0c-bc9a-4ea8-b138-48ee05524ee8"
 }
