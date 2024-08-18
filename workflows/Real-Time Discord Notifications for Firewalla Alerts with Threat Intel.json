@@ -195,7 +195,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://10.1.1.16:8010/api/analyze_multiple_observables",
+        "url": "http://your_intelowl_server/api/analyze_multiple_observables",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -241,7 +241,7 @@
     },
     {
       "parameters": {
-        "url": "=http://10.1.1.16:8010/api/jobs/{{ $json.jobId }}",
+        "url": "=http://your_intelowl_server/api/jobs/{{ $json.jobId }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
