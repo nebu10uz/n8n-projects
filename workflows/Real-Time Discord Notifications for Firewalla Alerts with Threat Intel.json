@@ -151,7 +151,7 @@
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "name": "Discord notifications of Firewalla alarm and Threat Intel",
+  "name": "Real-Time Discord Notifications for Firewalla Alerts with Threat Intel",
   "nodes": [
     {
       "parameters": {
@@ -195,7 +195,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://your_intelowl_server/api/analyze_multiple_observables",
+        "url": "http://10.1.1.16:8010/api/analyze_multiple_observables",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -241,7 +241,7 @@
     },
     {
       "parameters": {
-        "url": "=http://your_intelowl_server/api/jobs/{{ $json.jobId }}",
+        "url": "=http://10.1.1.16:8010/api/jobs/{{ $json.jobId }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -263,7 +263,9 @@
       }
     },
     {
-      "parameters": {},
+      "parameters": {
+        "amount": 15
+      },
       "id": "e6361f01-16ba-4be9-822e-6654d7e61377",
       "name": "Wait",
       "type": "n8n-nodes-base.wait",
@@ -431,8 +433,8 @@
     },
     {
       "parameters": {
-        "content": "## Firewalla MSP Setup\n\n1. Go to your Firewall MSP portal and under Alarms > Alarm Settings > Integration > Custom App, add your n8n webhook URL. The webhook URL is provided by this trigger webhook node. Just double click on this node and the webhook URL is located in Parameters.",
-        "height": 370.3777089783284,
+        "content": "## Firewalla MSP Setup\n\n1. Go to your Firewall MSP portal and under Alarms > Alarm Settings > Integration > Custom App, add your n8n webhook URL. The webhook URL is provided by the trigger webhook node. Just double click on this node and you will find the webhook URL in Parameters.\n\n## Discord Setup\n\nFor the Discord nodes, select webhook as connection type and select or add your Discord webhook URL.\n\n## IntelOwl Setup\n\nFor the IntelOwl nodes, make sure change the placeholder to your IntelOwl base URL; e.g. **https://your_intelowl/**\n\nIn Header Auth account parameter, input your IntelOwl token credentials; example:\n\n**Authorization**\n\ntoken bz8348ald....",
+        "height": 563.8414860681114,
         "width": 425.80804953560397,
         "color": 5
       },
@@ -441,8 +443,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -100,
-        80
+        -440,
+        180
       ]
     },
     {
@@ -488,6 +490,6 @@
     }
   ],
   "triggerCount": 1,
-  "updatedAt": "2024-08-17T00:47:59.000Z",
-  "versionId": "55c20d0c-bc9a-4ea8-b138-48ee05524ee8"
+  "updatedAt": "2024-08-18T13:52:41.000Z",
+  "versionId": "e82a689f-d71c-4623-a3db-8487458cf4e8"
 }
